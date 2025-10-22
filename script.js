@@ -5,19 +5,44 @@ const body = document.body;
 let progress = 0;
 const max = 100;
 
-const decayInterval = 80;        // как часто срабатывает откат
-const lightDuration = 15000;     // сколько горит свет (в мс)
-const increment = 5;             // сила клика
-
-// === рассчитываем скорость отката под нужную длительность
-// decayRate = сколько процентов снимается за один шаг
+const decayInterval = 80;
+const lightDuration = 15000;
+const increment = 5;
 const decayRate = max / (lightDuration / decayInterval);
 
 let finished = false;
 let lightTimeout = null;
 
+// === аудио
+const gearAudio = new Audio('gears.mp3');
+gearAudio.loop = true;
+let audioPlaying = false;
+
+// Включаем звук — только если не играет
+function playGearAudio() {
+    if (!audioPlaying) {
+        gearAudio.currentTime = 0;
+        gearAudio.play();
+        audioPlaying = true;
+    }
+}
+
+// Отключаем звук
+function stopGearAudio() {
+    if (audioPlaying) {
+        gearAudio.pause();
+        gearAudio.currentTime = 0;
+        audioPlaying = false;
+    }
+}
+
 button.addEventListener('click', () => {
     if (finished) return;
+
+    // Если прогресс был 0 и теперь стал больше 0 — запускаем звук
+    if (progress === 0) {
+        playGearAudio();
+    }
 
     progress += increment;
     if (progress > max) progress = max;
@@ -28,7 +53,6 @@ button.addEventListener('click', () => {
         bar.style.background = 'gold';
         body.style.background = '#f4f4f4';
 
-        // === SDK: закрыть iframe и активировать задачу
         PortalsSdk.closeIframe();
         PortalsSdk.sendMessageToUnity(
             JSON.stringify({
@@ -37,8 +61,9 @@ button.addEventListener('click', () => {
             })
         );
 
-        // === через 15 секунд — деактивировать задачу (вместе с концом шкалы)
-        lightTimeout = setTimeout(() => {
+        // Выключить звук через 15 секунд (с окончанием света)
+        setTimeout(() => {
+            stopGearAudio();
             PortalsSdk.sendMessageToUnity(
                 JSON.stringify({
                     TaskName: "room-light",
@@ -61,11 +86,15 @@ function updateBar() {
 // постоянный откат
 function decay() {
     if (!finished) {
-        progress -= 1; // обычное “сопротивление” до 100%
+        progress -= 1;
         if (progress < 0) progress = 0;
         updateBar();
+
+        // Если прогресс опустился до 0 — выключаем звук
+        if (progress === 0) {
+            stopGearAudio();
+        }
     } else {
-        // когда “победа” — синхронный откат ровно за lightDuration
         progress -= decayRate;
         if (progress <= 0) {
             progress = 0;
@@ -74,6 +103,7 @@ function decay() {
             bar.style.background = 'linear-gradient(90deg, #6fcf97, #28a745)';
             body.style.background = '#222';
             clearTimeout(lightTimeout);
+            stopGearAudio(); // Выключить звук, если прогресс доходит до 0 после победы
         }
         updateBar();
     }
@@ -88,4 +118,5 @@ window.onload = () => {
     button.disabled = false;
     bar.style.background = 'linear-gradient(90deg, #6fcf97, #28a745)';
     body.style.background = '#222';
+    stopGearAudio();
 };
