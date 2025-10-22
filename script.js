@@ -40,7 +40,7 @@ button.addEventListener('click', () => {
                     TaskTargetState: "SetActiveToNotActive"
                 })
             );
-        }, 5000);
+        }, 15000);
     }
 
     updateBar();
