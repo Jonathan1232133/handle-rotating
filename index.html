@@ -1,18 +1,26 @@
 <!DOCTYPE html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Генератор света</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vintage Crank Handler</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
     <div class="container">
-      <div class="bar-bg">
-        <div id="bar" class="bar"></div>
-      </div>
-      <button id="clicker"></button>
+        <div class="instruction">Click to crank</div>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <button class="crank-button" id="crankButton">
+            <div class="handle"></div>
+        </button>
     </div>
+    
+    <audio id="gearsSound" src="gears.mp3" loop></audio>
     <script src="https://portals-labs.github.io/portals-sdk/portals-sdk.js?v=10005456"></script>
     <script src="script.js"></script>
-  </body>
+</body>
 </html>
