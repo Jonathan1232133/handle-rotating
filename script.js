@@ -1,58 +1,31 @@
-const bar = document.getElementById('bar');
-const button = document.getElementById('clicker');
-const body = document.body;
+const progressBar = document.getElementById('progressBar');
+const crankButton = document.getElementById('crankButton');
+const gearsSound = document.getElementById('gearsSound');
 
 let progress = 0;
-const max = 100;
+let soundPlaying = false;
+let drainInterval;
+let soundStopTimeout = null;
+const lightDuration = 15000; // 15 секунд
 
-const decayInterval = 80;
-const lightDuration = 15000;
-const increment = 5;
-const decayRate = max / (lightDuration / decayInterval);
-
-let finished = false;
-let lightTimeout = null;
-
-// === аудио
-const gearAudio = new Audio('gears.mp3');
-gearAudio.loop = true;
-let audioPlaying = false;
-
-// Включаем звук — только если не играет
-function playGearAudio() {
-    if (!audioPlaying) {
-        gearAudio.currentTime = 0;
-        gearAudio.play();
-        audioPlaying = true;
-    }
-}
-
-// Отключаем звук
-function stopGearAudio() {
-    if (audioPlaying) {
-        gearAudio.pause();
-        gearAudio.currentTime = 0;
-        audioPlaying = false;
-    }
-}
-
-button.addEventListener('click', () => {
-    if (finished) return;
-
-    // Если прогресс был 0 и теперь стал больше 0 — запускаем звук
-    if (progress === 0) {
-        playGearAudio();
-    }
-
-    progress += increment;
-    if (progress > max) progress = max;
-
-    if (progress >= max) {
-        finished = true;
-        button.disabled = true;
-        bar.style.background = 'gold';
-        body.style.background = '#f4f4f4';
-
+// Increase progress on click
+crankButton.addEventListener('click', () => {
+    progress = Math.min(progress + 5, 100);
+    updateProgress();
+    
+    // Check if progress reached 100%
+    if (progress === 100) {
+        // Reset progress instantly without transition
+        progressBar.classList.add('notransition');
+        progress = 0;
+        progressBar.style.width = '0%';
+        
+        // Re-enable transition after instant reset
+        setTimeout(() => {
+            progressBar.classList.remove('notransition');
+        }, 50);
+        
+        // Закрыть iframe и включить свет в Unity
         PortalsSdk.closeIframe();
         PortalsSdk.sendMessageToUnity(
             JSON.stringify({
@@ -60,63 +33,58 @@ button.addEventListener('click', () => {
                 TaskTargetState: "SetNotActiveToActive"
             })
         );
-
-        // Выключить звук через 15 секунд (с окончанием света)
-        setTimeout(() => {
-            stopGearAudio();
-            PortalsSdk.sendMessageToUnity(
-                JSON.stringify({
-                    TaskName: "room-light",
-                    TaskTargetState: "SetActiveToNotActive"
-                })
-            );
-        }, lightDuration);
+        
+        // Выключить звук и свет через 15 секунд
+        if (soundPlaying) {
+            soundStopTimeout = setTimeout(() => {
+                gearsSound.pause();
+                gearsSound.currentTime = 0;
+                soundPlaying = false;
+                
+                // Выключить свет в Unity
+                PortalsSdk.sendMessageToUnity(
+                    JSON.stringify({
+                        TaskName: "room-light",
+                        TaskTargetState: "SetActiveToNotActive"
+                    })
+                );
+            }, lightDuration);
+        }
     }
-
-    updateBar();
+    
+    // Rotate animation
+    crankButton.classList.add('rotating');
+    setTimeout(() => {
+        crankButton.classList.remove('rotating');
+    }, 300);
+    
+    // Start sound on first click if progress > 0
+    if (progress > 0 && !soundPlaying) {
+        // Clear any pending stop timeout
+        if (soundStopTimeout) {
+            clearTimeout(soundStopTimeout);
+            soundStopTimeout = null;
+        }
+        gearsSound.play();
+        soundPlaying = true;
+    }
 });
 
-function updateBar() {
-    bar.style.width = progress + '%';
-    if (!finished) {
-        bar.style.background = 'linear-gradient(90deg, #6fcf97, #28a745)';
-    }
-}
-
-// постоянный откат
-function decay() {
-    if (!finished) {
-        progress -= 1;
-        if (progress < 0) progress = 0;
-        updateBar();
-
-        // Если прогресс опустился до 0 — выключаем звук
-        if (progress === 0) {
-            stopGearAudio();
+// Drain progress continuously
+drainInterval = setInterval(() => {
+    if (progress > 0) {
+        progress = Math.max(progress - 0.5, 0);
+        updateProgress();
+        
+        // Stop sound when progress reaches 0 (only if not waiting for 15-second delay)
+        if (progress === 0 && soundPlaying && !soundStopTimeout) {
+            gearsSound.pause();
+            gearsSound.currentTime = 0;
+            soundPlaying = false;
         }
-    } else {
-        progress -= decayRate;
-        if (progress <= 0) {
-            progress = 0;
-            finished = false;
-            button.disabled = false;
-            bar.style.background = 'linear-gradient(90deg, #6fcf97, #28a745)';
-            body.style.background = '#222';
-            clearTimeout(lightTimeout);
-            stopGearAudio(); // Выключить звук, если прогресс доходит до 0 после победы
-        }
-        updateBar();
     }
+}, 50);
+
+function updateProgress() {
+    progressBar.style.width = progress + '%';
 }
-
-setInterval(decay, decayInterval);
-
-window.onload = () => {
-    progress = 0;
-    finished = false;
-    bar.style.width = '0%';
-    button.disabled = false;
-    bar.style.background = 'linear-gradient(90deg, #6fcf97, #28a745)';
-    body.style.background = '#222';
-    stopGearAudio();
-};
